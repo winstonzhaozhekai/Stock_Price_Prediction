@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 
 def main():
 
+    # Ensure reproducibility 
     seed_value = 1
     random.seed(seed_value)
     np.random.seed(seed_value)
@@ -18,12 +19,12 @@ def main():
 
     @dataclass
     class G:
-        SPLIT_RATIO = 1
+        SPLIT_RATIO = 0.8
         WINDOW_SIZE = 30
         BATCH_SIZE = 3
         NO_OF_FEATURES = 16
 
-
+    # Create windowed datasets
     def windowed_dataset(series, date_column, window_size=G.WINDOW_SIZE):
         X = []
 
@@ -44,17 +45,19 @@ def main():
         date_column = date_column[window_size:].values
 
         return X, y, date_column
-
-    def train_val_split(X, y, split):
+    
+    # Split data to train and test
+    def train_test_split(X, y, split):
 
         split_time = int(split * len(X))
         X_train = X[:split_time]
         y_train = y[:split_time]
-        X_val = X[split_time:]
-        y_val = y[split_time:]
+        X_test = X[split_time:]
+        y_test = y[split_time:]
 
-        return X_train, y_train, X_val, y_val
-
+        return X_train, y_train, X_test, y_test
+    
+    # Download data from Yahoo Finance
     data = yf.download(tickers='^NDX', start='1985-10-01', end='2023-12-31')
 
     data['RSIF'] = ta.rsi(data.Close, length=14)
@@ -99,14 +102,15 @@ def main():
     y_scaler = MinMaxScaler(feature_range=(0, 1))
     y_scaled = y_scaler.fit_transform(y)
 
-    X_train, y_train, X_val, y_val = train_val_split(X, y_scaled, G.SPLIT_RATIO)
-    date_val = windowed_date_column[int(G.SPLIT_RATIO * len(windowed_date_column)):]
+    X_train, y_train, X_test, y_test = train_test_split(X, y_scaled, G.SPLIT_RATIO)
+    date_test = windowed_date_column[int(G.SPLIT_RATIO * len(windowed_date_column)):]
 
     print(X_train.shape)
     print(y_train.shape)
-    print(X_val.shape)
-    print(y_val.shape)
+    print(X_test.shape)
+    print(y_test.shape)
 
+    # Create model
     def create_uncompiled_model():
 
         model = tf.keras.models.Sequential([ 
@@ -129,6 +133,7 @@ def main():
     model = create_model()
     history = model.fit(X_train, y_train, epochs=50, batch_size=G.BATCH_SIZE)
 
+    # Save model 
     model.save("stock_price_prediction_model_v1.keras")
 
     def compute_metrics(true_series, forecast):
@@ -138,10 +143,10 @@ def main():
 
         return mse, mae
 
-    y_pred_scaled = model.predict(X_val)
+    y_pred_scaled = model.predict(X_test)
     y_pred = y_scaler.inverse_transform(y_pred_scaled)
 
-    y_true = y_scaler.inverse_transform(y_val)
+    y_true = y_scaler.inverse_transform(y_test)
 
     mse, mae = compute_metrics(y_true, y_pred)
 
@@ -152,12 +157,15 @@ def main():
     print("Overall Average MAE:", overall_avg_mae)
 
     plt.figure(figsize=(10, 6))
-    plt.plot(date_val, y_true, label='True Values', color='black', linestyle='-')
-    plt.plot(date_val, y_pred, label='Predicted Values', color='green', linestyle='-')
+    plt.plot(date_test, y_true, label='True Values', color='black', linestyle='-')
+    plt.plot(date_test, y_pred, label='Predicted Values', color='green', linestyle='-')
     plt.xlabel('Date')
     plt.legend()
     plt.show()
 
+
 if __name__ == "__main__":
     main()
+
+
 
