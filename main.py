@@ -1,9 +1,7 @@
 import random
-import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import tensorflow as tf
-from pandas_datareader import data as pdr
 import pandas_ta as ta
 from dataclasses import dataclass
 import yfinance as yf
@@ -125,7 +123,7 @@ def main():
         model = create_uncompiled_model()
 
         model.compile(loss=tf.keras.losses.Huber(),
-                        optimizer=tf.keras.optimizers.SGD(learning_rate = 0.055, momentum = 0.9),
+                        optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001, beta_1=0.9, beta_2=0.999),
                         metrics=["mse"])  
 
         return model
@@ -166,6 +164,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
 
